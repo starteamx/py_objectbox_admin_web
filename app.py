@@ -73,34 +73,31 @@ def cleanup_old_files():
             print(f"清理失败: {item}, 错误: {str(e)}")
 
 def stop_existing_container():
-    """停止现有的 ObjectBox Admin 进程"""
+    """停止现有的 ObjectBox Admin Docker 容器"""
     try:
-        # 先检查端口占用
-        result = subprocess.run(['lsof', '-t', '-i:8081'], 
-                              capture_output=True, text=True)
-        if result.stdout:
-            pid = result.stdout.strip()
-            # 尝试正常终止进程
-            try:
-                subprocess.run(['kill', pid], check=True)
-                time.sleep(1)  # 等待进程正常退出
-            except subprocess.CalledProcessError:
-                pass
-            
-            # 如果进程还在，强制终止
-            try:
-                subprocess.run(['kill', '-9', pid], check=True)
-                time.sleep(1)  # 等待进程被强制终止
-            except subprocess.CalledProcessError:
-                pass
-            
-            # 再次检查端口是否释放
-            check_result = subprocess.run(['lsof', '-t', '-i:8081'], 
-                                        capture_output=True, text=True)
-            if check_result.stdout:
-                raise Exception("无法释放端口 8081")
+        # 查找并停止 objectbox-admin 容器
+        subprocess.run(
+            ["docker", "ps", "-q", "--filter", "ancestor=objectboxio/admin"],
+            capture_output=True, text=True, check=True
+        )
+        
+        # 停止所有 objectboxio/admin 镜像的容器
+        subprocess.run(
+            ["docker", "stop", "$(docker ps -q --filter ancestor=objectboxio/admin)"],
+            shell=True,  # 使用 shell 执行命令
+            capture_output=True
+        )
+        
+        # 删除停止的容器
+        subprocess.run(
+            ["docker", "rm", "$(docker ps -aq --filter ancestor=objectboxio/admin)"],
+            shell=True,  # 使用 shell 执行命令
+            capture_output=True
+        )
+        
+        print("已停止并删除现有的 ObjectBox Admin 容器")
     except Exception as e:
-        print(f"停止现有进程失败: {str(e)}")
+        print(f"停止 Docker 容器失败: {str(e)}")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
