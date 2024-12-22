@@ -49,7 +49,7 @@ sudo ln -sf /usr/local/bin/pip3 /usr/local/bin/pip
 ```
 
 #### Windows:
-通常安装时会自动配置，如果需要手动配置：
+通常安装时会自动配置，如果需要手动配置��
 1. 系统属性 -> 环境变量
 2. 在 Path 中添加 Python 安装目录
 
@@ -144,7 +144,7 @@ http://localhost:8000
    - 确保 objectbox-admin.sh 有执行权限
    - 确保 objectbox 目录有写入权限
 
-2. 如果端口被占用��
+2. 如果端口被占用
    - 使用不同的端口启动应用：
      ```bash
      uvicorn app:app --host 0.0.0.0 --port <其他端口号>
@@ -159,6 +159,8 @@ http://localhost:8000
 ## 开发说明
 
 - app.py：主应用文件，包含所有后端逻辑
+  - 使用 FastAPI lifespan 管理应用生命周期
+  - 自动处理启动和关闭时的清理工作
 - templates/index.html：前端上传界面
 - objectbox/：存放 ObjectBox 相关文件和上传的数据库
 
