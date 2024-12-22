@@ -1,0 +1,69 @@
+# Cursor Markdown 输出规范
+
+## 基本格式规则
+
+### 标题格式
+- 使用 `#` 符号表示标题层级
+- 标题前后必须有空行
+- 最多使用到四级标题（####）
+- 标题层级要有清晰的从属关系
+
+### 代码块格式
+```python
+# 代码块开始使用 ```language
+# language 必须指定具体类型
+# 代码块前后要有空行
+def example():
+    pass
+```
+
+### 列表格式
+- 无序列表统一使用 `-` 符号
+- 列表项前后要有空行
+- 子列表缩进 2 个空格
+- 列表项内容要对齐
+
+### 目录结构格式
+```
+project/
+├── folder1/          # 注释说明
+│   ├── file1.txt    # 注释说明
+│   └── file2.txt    # 注释说明
+└── folder2/          # 注释说明
+    └── file3.txt    # 注释说明
+```
+
+### 命令示例格式
+```bash
+# Windows 命令
+command.exe --parameter
+
+# Linux/macOS 命令
+command --parameter
+```
+
+### 文件路径引用
+```python:path/to/file.py
+def example():
+    pass
+```
+
+### 代码编辑建议
+```python
+# ... existing code ...
+new_code_here()
+# ... existing code ...
+```
+
+### 链接格式
+- 外部链接：`[链接文字](URL)`
+- 内部引用：`[引用文字](#锚点)`
+
+### 文档基本结构
+- 标题
+- 简短描述
+- 系统要求（如果需要）
+- 安装说明（如果需要）
+- 使用说明
+- 注意事项
+- 故障排除（如果需要） 

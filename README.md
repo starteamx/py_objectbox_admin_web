@@ -8,61 +8,61 @@
 - Docker（用于运行 ObjectBox Admin）
 - pip（Python 包管理器）
 
-+ ## Python 环境配置
-+ 
-+ ### 1. 安装 Python
-+ 
-+ #### Windows:
-+ 1. 访问 [Python 官网](https://www.python.org/downloads/)
-+ 2. 下载 Python 3.9 或更高版本
-+ 3. 运行安装程序，确保勾选 "Add Python to PATH"
-+ 
-+ #### macOS:
-+ 1. 使用 Homebrew 安装：
-+    ```bash
-+    brew install python@3.9
-+    ```
-+ 2. 或从 [Python 官网](https://www.python.org/downloads/) 下载安装程序
-+ 
-+ #### Linux:
-+ ```bash
-+ # Ubuntu/Debian
-+ sudo apt update
-+ sudo apt install python3.9
-+ 
-+ # CentOS/RHEL
-+ sudo yum install python39
-+ ```
-+ 
-+ ### 2. 配置 Python 命令
-+ 
-+ 如果系统同时存在 python/python3 或 pip/pip3 命令，建议创建符号链接：
-+ 
-+ #### macOS/Linux:
-+ ```bash
-+ # 检查当前 Python 版本
-+ python3 --version
-+ 
-+ # 创建符号链接
-+ sudo ln -sf /usr/local/bin/python3 /usr/local/bin/python
-+ sudo ln -sf /usr/local/bin/pip3 /usr/local/bin/pip
-+ ```
-+ 
-+ #### Windows:
-+ 通常安装时会自动配置，如果需要手动配置：
-+ 1. 系统属性 -> 环境变量
-+ 2. 在 Path 中添加 Python 安装目录
-+ 
-+ ### 3. 验证安装
-+ ```bash
-+ # 验证 Python 版本
-+ python --version
-+ 
-+ # 验证 pip 版本
-+ pip --version
-+ ```
-+ 
-### Python 依赖
+## Python 环境配置
+
+### 1. 安装 Python
+
+#### Windows:
+1. 访问 [Python 官网](https://www.python.org/downloads/)
+2. 下载 Python 3.9 或更高版本
+3. 运行安装程序，确保勾选 "Add Python to PATH"
+
+#### macOS:
+1. 使用 Homebrew 安装：
+```bash
+brew install python@3.9
+```
+2. 或从 [Python 官网](https://www.python.org/downloads/) 下载安装程序
+
+#### Linux:
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install python3.9
+
+# CentOS/RHEL
+sudo yum install python39
+```
+
+### 2. 配置 Python 命令
+
+如果系统同时存在 python/python3 或 pip/pip3 命令，建议创建符号链接：
+
+#### macOS/Linux:
+```bash
+# 检查当前 Python 版本
+python3 --version
+
+# 创建符号链接
+sudo ln -sf /usr/local/bin/python3 /usr/local/bin/python
+sudo ln -sf /usr/local/bin/pip3 /usr/local/bin/pip
+```
+
+#### Windows:
+通常安装时会自动配置，如果需要手动配置：
+1. 系统属性 -> 环境变量
+2. 在 Path 中添加 Python 安装目录
+
+### 3. 验证安装
+```bash
+# 验证 Python 版本
+python --version
+
+# 验证 pip 版本
+pip --version
+```
+
+## Python 依赖
 - FastAPI - Web 框架
 - uvicorn - ASGI 服务器
 - python-multipart - 用于处理文件上传
@@ -72,13 +72,13 @@
 ## 目录结构 
 ```
 project/
-├── app.py # FastAPI 应用主文件
-├── templates/ # HTML 模板目录
-│ └── index.html # 上传页面模板
-├── objectbox/ # ObjectBox 相关文件目录
-│ └── objectbox-admin.sh # ObjectBox Admin 启动脚本
-├── requirements.txt # Python 依赖文件
-└── README.md # 项目说明文档
+├── app.py              # FastAPI 应用主文件
+├── templates/          # HTML 模板目录
+│   └── index.html     # 上传页面模板
+├── objectbox/         # ObjectBox 相关文件目录
+│   └── objectbox-admin.sh  # ObjectBox Admin 启动脚本
+├── requirements.txt    # Python 依赖文件
+└── README.md          # 项目说明文档
 ```
 
 ## 安装步骤
@@ -91,10 +91,11 @@ cd <project-directory>
 
 2. 创建并激活虚拟环境（可选但推荐）：
 ```bash
-在 Windows 上：
+# Windows
 python -m venv venv
 venv\Scripts\activate
-在 macOS/Linux 上：
+
+# macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
 ```
@@ -143,7 +144,7 @@ http://localhost:8000
    - 确保 objectbox-admin.sh 有执行权限
    - 确保 objectbox 目录有写入权限
 
-2. 如果端口被占用：
+2. 如果端口被占用��
    - 使用不同的端口启动应用：
      ```bash
      uvicorn app:app --host 0.0.0.0 --port <其他端口号>
