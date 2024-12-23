@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -37,9 +36,12 @@ ENV/
 # Project specific
 objectbox/*
 !objectbox/objectbox-admin.sh
+!objectbox/nginx/
 *.mdb
 logs/
 *.log
+run/
+*.pid
 
 # FastAPI
 .coverage
@@ -55,3 +57,13 @@ htmlcov/
 # Temporary files
 tmp/
 temp/
+
+# Local development
+.env.local
+.env.development
+.env.test
+.env.production
+
+# System files
+.DS_Store
+Thumbs.db
