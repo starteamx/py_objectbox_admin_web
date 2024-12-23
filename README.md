@@ -301,3 +301,150 @@ chmod -R 755 logs run
 ## 联系方式
 
 [添加您的联系信息]
+
+## Docker 安装说明
+
+### Windows 安装
+
+1. **安装 WSL2（Windows Subsystem for Linux）**
+```bash
+# 以管理员身份打开 PowerShell 并运行
+wsl --install
+```
+
+2. **下载安装 Docker Desktop**
+- 访问 [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop)
+- 下载并安装 Docker Desktop
+- 安装过程中确保选择 "Use WSL 2" 选项
+
+3. **验证安装**
+```bash
+docker --version
+docker-compose --version
+```
+
+### Mac OS 安装
+
+1. **Intel 芯片 Mac**
+- 访问 [Docker Desktop for Mac (Intel)](https://www.docker.com/products/docker-desktop)
+- 下载 Intel 芯片版本安装包
+
+2. **Apple Silicon (M1/M2) Mac**
+- 访问 [Docker Desktop for Mac (Apple Silicon)](https://www.docker.com/products/docker-desktop)
+- 下载 Apple Silicon 版本安装包
+
+3. **使用 Homebrew 安装**
+```bash
+# 安装 Homebrew（如果未安装）
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装 Docker Desktop
+brew install --cask docker
+```
+
+4. **启动 Docker**
+- 从应用程序文件夹启动 Docker Desktop
+- 等待 Docker Desktop 完成启动
+
+5. **验证安装**
+```bash
+docker --version
+docker-compose --version
+```
+
+### Linux 安装
+
+#### Ubuntu/Debian
+```bash
+# 更新包索引
+sudo apt update
+
+# 安装必要的依赖
+sudo apt install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# 添加 Docker 官方 GPG 密钥
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+# 设置稳定版仓库
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 安装 Docker Engine
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io
+
+# 启动 Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 将当前用户添加到 docker 组（免 sudo）
+sudo usermod -aG docker $USER
+```
+
+#### CentOS/RHEL
+```bash
+# 安装必要的依赖
+sudo yum install -y yum-utils
+
+# 添加 Docker 仓库
+sudo yum-config-manager \
+    --add-repo \
+    https://download.docker.com/linux/centos/docker-ce.repo
+
+# 安装 Docker Engine
+sudo yum install -y docker-ce docker-ce-cli containerd.io
+
+# 启动 Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 将当前用户添加到 docker 组（免 sudo）
+sudo usermod -aG docker $USER
+```
+
+### 验证 Docker 安装
+
+```bash
+# 检查 Docker 版本
+docker --version
+
+# 验证 Docker 是否正常工作
+docker run hello-world
+
+# 检查 Docker 服务状态（Linux）
+sudo systemctl status docker
+```
+
+### Docker 常见问题解决
+
+1. **权限问题**
+```bash
+# Linux 系统添加用户到 docker 组后需要重新登录
+newgrp docker
+```
+
+2. **网络问题**
+```bash
+# 检查 Docker 网络
+docker network ls
+
+# 重启 Docker 服务
+# Windows/Mac: 通过 Docker Desktop 重启
+# Linux:
+sudo systemctl restart docker
+```
+
+3. **磁盘空间问题**
+```bash
+# 清理未使用的 Docker 资源
+docker system prune -a
+
+# 查看 Docker 磁盘使用情况
+docker system df
+```
