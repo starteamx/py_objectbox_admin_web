@@ -8,161 +8,96 @@
 - Docker（用于运行 ObjectBox Admin）
 - pip（Python 包管理器）
 
-## Python 环境配置
+## 安装说明
 
-### 1. 安装 Python
-
-#### Windows:
-1. 访问 [Python 官网](https://www.python.org/downloads/)
-2. 下载 Python 3.9 或更高版本
-3. 运行安装程序，确保勾选 "Add Python to PATH"
-
-#### macOS:
-1. 使用 Homebrew 安装：
-```bash
-brew install python@3.9
-```
-2. 或从 [Python 官网](https://www.python.org/downloads/) 下载安装程序
-
-#### Linux:
-```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install python3.9
-
-# CentOS/RHEL
-sudo yum install python39
-```
-
-### 2. 配置 Python 命令
-
-如果系统同时存在 python/python3 或 pip/pip3 命令，建议创建符号链接：
-
-#### macOS/Linux:
-```bash
-# 检查当前 Python 版本
-python3 --version
-
-# 创建符号链接
-sudo ln -sf /usr/local/bin/python3 /usr/local/bin/python
-sudo ln -sf /usr/local/bin/pip3 /usr/local/bin/pip
-```
-
-#### Windows:
-通常安装时会自动配置，如果需要手动配置��
-1. 系统属性 -> 环境变量
-2. 在 Path 中添加 Python 安装目录
-
-### 3. 验证安装
-```bash
-# 验证 Python 版本
-python --version
-
-# 验证 pip 版本
-pip --version
-```
-
-## Python 依赖
-- FastAPI - Web 框架
-- uvicorn - ASGI 服务器
-- python-multipart - 用于处理文件上传
-- jinja2 - 模板引擎
-- aiofiles - 异步文件操作
-
-## 目录结构 
-```
-project/
-├── app.py              # FastAPI 应用主文件
-├── templates/          # HTML 模板目录
-│   └── index.html     # 上传页面模板
-├── objectbox/         # ObjectBox 相关文件目录
-│   └── objectbox-admin.sh  # ObjectBox Admin 启动脚本
-├── requirements.txt    # Python 依赖文件
-└── README.md          # 项目说明文档
-```
-
-## 安装步骤
-
-1. 克隆或下载项目到本地：
+### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd <project-directory>
+cd objectbox-admin-web
 ```
 
-2. 创建并激活虚拟环境（可选但推荐）：
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-3. 安装依赖：
+### 2. 安装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-4. 确保 ObjectBox Admin 脚本有执行权限：
-```bash
-chmod +x objectbox/objectbox-admin.sh
+### 3. 准备目录结构
 ```
-
-## 运行应用
-
-1. 启动服务器：
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-2. 在浏览器中访问：
-```
-http://localhost:8000
+project/
+├── app.py              # FastAPI 主应用
+├── static/             # 静态文件目录
+├── templates/          # HTML 模板目录
+│   └── index.html     # 上传页面
+├── objectbox/          # ObjectBox 相关文件
+│   ├── nginx/         # Nginx 配置目录
+│   └── objectbox-admin.sh  # 启动脚本
+└── requirements.txt    # Python 依赖
 ```
 
 ## 使用说明
 
-1. 打开网页后，您会看到一个文件上传界面
-2. 点击选择文件，选择要上传的 .mdb 数据库文件
-3. 点击 Upload 按钮上传文件
-4. 上传成功后，页面会自动跳转到 ObjectBox Admin 界面（端口 8081）
+### 启动服务
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+### 访问界面
+- 本地访问：http://localhost:8000
+- 局域网访问：http://<your-ip>:8000
+
+## 关键功能点
+
+### Docker 网络配置
+- 使用自定义网络 `objectbox-network`
+- 容器间通过容器名称通信
+- 固定容器名称确保稳定性
+
+### Nginx 代理设置
+- 使用容器名称作为上游服务器
+- 配置正确的代理头信息
+- 启用详细的错误日志
+
+### 容器管理机制
+- 自动清理旧容器
+- 使用固定容器名称
+- 正确的启动和清理顺序
 
 ## 注意事项
 
-1. 确保端口 8000（Web 应用）和 8081（ObjectBox Admin）未被其他应用占用
-2. 上传的数据库文件会被保存在 objectbox 目录下的唯一子目录中
-3. 每次上传新文件时，之前运行的 ObjectBox Admin 实例会被自动关闭
-4. 请确保系统已安装 Docker 并且能够正常运行
-5. 系统会自动清理超过1分钟的旧文件和目录
-6. 清理会在应用启动时和每次上传新文件前执行
+### 权限设置
+- 确保 objectbox-admin.sh 有执行权限
+- 确保 objectbox 目录有写入权限
+
+### 端口占用
+- 默认使用 8000 端口（Web 应用）
+- 默认使用 8081 端口（ObjectBox Admin）
+- 可通过参数修改端口号
+
+### 文件清理
+- 自动清理过期文件
+- 保留必要的配置文件
+- 可配置清理时间间隔
 
 ## 故障排除
 
-1. 如果遇到权限问题：
-   - 确保 objectbox-admin.sh 有执行权限
-   - 确保 objectbox 目录有写入权限
+### 1. 容器启动失败
+```bash
+# 检查 Docker 日志
+docker logs objectbox-admin
+docker logs nginx-proxy
+```
 
-2. 如果端口被占用
-   - 使用不同的端口启动应用：
-     ```bash
-     uvicorn app:app --host 0.0.0.0 --port <其他端口号>
-     ```
-   - 或者关闭占用端口的程序
+### 2. 网络连接问题
+```bash
+# 检查网络配置
+docker network inspect objectbox-network
+```
 
-3. 如果上传后无法跳转：
-   - 检查 8081 端口是否被占用
-   - 检查 Docker 是否正常运行
-   - 查看控制台输出的错误信息
-
-## 开发说明
-
-- app.py：主应用文件，包含所有后端逻辑
-  - 使用 FastAPI lifespan 管理应用生命周期
-  - 自动处理启动和关闭时的清理工作
-- templates/index.html：前端上传界面
-- objectbox/：存放 ObjectBox 相关文件和上传的数据库
+### 3. 权限问题
+```bash
+# 设置执行权限
+chmod +x objectbox/objectbox-admin.sh
+```
 
 ## 许可证
 

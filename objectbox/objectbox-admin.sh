@@ -59,8 +59,59 @@ fi
 db=$( cd "$db" ; pwd -P )
 
 echo "Found database at local location '${db}'."
-echo "Open http://127.0.0.1:${port} in a browser."
-echo "Once done, hit CTRL+C to stop 'ObjectBox Admin' Docker container."
+echo "Starting container with the following configuration:"
+echo "- Database path: ${db}"
+echo "- Port: ${port}"
+echo "- Network mode: host"
 echo "=================================================================="
 
-docker run --rm -it -v "$db:/db" -u $(id -u):$(id -g) -p ${port}:8081 objectboxio/admin:latest || usage
+# 确保网络存在
+docker network create objectbox-network 2>/dev/null || true
+
+# 清理旧容器（如果存在）
+docker rm -f objectbox-admin nginx-proxy 2>/dev/null || true
+
+# 启动 ObjectBox Admin 容器（使用固定容器名）
+docker run -d \
+    --name objectbox-admin \
+    --network objectbox-network \
+    -v "$db:/db" \
+    -u $(id -u):$(id -g) \
+    objectboxio/admin:latest
+
+# 启动 Nginx 代理（使用固定容器名）
+docker run -d \
+    --name nginx-proxy \
+    --network objectbox-network \
+    -p ${port}:8081 \
+    -v $(pwd)/nginx/conf.d:/etc/nginx/conf.d:ro \
+    nginx:alpine
+
+echo "Checking container status..."
+
+# 等待容器启动
+sleep 2
+
+# 检查容器状态
+if docker ps | grep -q objectbox-admin && docker ps | grep -q nginx-proxy; then
+    echo "Containers are running"
+    echo "ObjectBox Admin logs:"
+    docker logs objectbox-admin
+    echo "Nginx logs:"
+    docker logs nginx-proxy
+else
+    echo "Containers failed to start"
+    echo "ObjectBox Admin logs:"
+    docker logs objectbox-admin
+    echo "Nginx logs:"
+    docker logs nginx-proxy
+    exit 1
+fi
+
+echo "Open http://127.0.0.1:${port} or http://$(hostname -I | awk '{print $1}'):${port} in a browser."
+echo "Once done, hit CTRL+C to stop containers."
+echo "=================================================================="
+
+# 等待用户输入并清理所有容器
+trap "docker stop objectbox-admin nginx-proxy && docker rm objectbox-admin nginx-proxy" INT
+while true; do sleep 1; done

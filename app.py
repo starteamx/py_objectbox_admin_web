@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -58,19 +58,20 @@ def cleanup_old_files():
     current_time = datetime.now()
     for item in os.listdir(OBJECTBOX_DIR):
         item_path = os.path.join(OBJECTBOX_DIR, item)
-        if item == "objectbox-admin.sh":
+        # 跳过 objectbox-admin.sh 和 nginx 目录
+        if item in ["objectbox-admin.sh", "nginx"]:
             continue
         
-        try:
-            modified_time = datetime.fromtimestamp(os.path.getmtime(item_path))
-            if current_time - modified_time > timedelta(minutes=FILE_EXPIRE_MINUTES):
+        # 检查文件/目录的修改时间
+        modified_time = datetime.fromtimestamp(os.path.getmtime(item_path))
+        if current_time - modified_time > timedelta(minutes=FILE_EXPIRE_MINUTES):
+            try:
                 if os.path.isdir(item_path):
                     shutil.rmtree(item_path)
                 else:
                     os.remove(item_path)
-                print(f"已清理: {item}")
-        except Exception as e:
-            print(f"清理失败: {item}, 错误: {str(e)}")
+            except Exception as e:
+                print(f"清理文件失败: {item_path}, 错误: {str(e)}")
 
 def stop_existing_container():
     """停止现有的 ObjectBox Admin Docker 容器"""
