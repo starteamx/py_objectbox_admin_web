@@ -6,11 +6,10 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.requests import Request
 
 # 配置常量
 OBJECTBOX_DIR = "objectbox"
@@ -58,7 +57,7 @@ def cleanup_old_files():
     current_time = datetime.now()
     for item in os.listdir(OBJECTBOX_DIR):
         item_path = os.path.join(OBJECTBOX_DIR, item)
-        # 跳过 objectbox-admin.sh 和 nginx 目录
+        # 过 objectbox-admin.sh 和 nginx 目录
         if item in ["objectbox-admin.sh", "nginx"]:
             continue
         
@@ -100,13 +99,75 @@ def stop_existing_container():
     except Exception as e:
         print(f"停止 Docker 容器失败: {str(e)}")
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    """渲染主页"""
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/")
+async def home(request: Request):
+    # 测试数据
+    test_instances = [
+        {
+            "id": 1,
+            "port": 8081,
+            "status": "RUNNING",
+            "running_time": "15分钟30秒",
+            "time_percentage": 45
+        },
+        {
+            "id": 2,
+            "port": 8082,
+            "status": "IDLE",
+            "running_time": None,
+            "time_percentage": 0
+        },
+        {
+            "id": 3,
+            "port": 8083,
+            "status": "RUNNING",
+            "running_time": "5m 12s",
+            "time_percentage": 15
+        },
+        {
+            "id": 4,
+            "port": 8084,
+            "status": "IDLE",
+            "running_time": None,
+            "time_percentage": 0
+        },
+        {
+            "id": 5,
+            "port": 8085,
+            "status": "IDLE",
+            "running_time": None,
+            "time_percentage": 0
+        }
+    ]
+    
+    return templates.TemplateResponse(
+        "instance_status.html", 
+        {"request": request, "instances": test_instances}
+    )
+
+@app.get("/instance/{instance_id}")
+async def instance_detail(request: Request, instance_id: int):
+    # 检查实例状态
+    # 这里应该检查实例是否处于空闲状态
+    instance = {
+        "id": instance_id,
+        "port": 8080 + instance_id,
+        "status": "IDLE",  # 只有空闲状态才能进入上传页面
+        "running_time": None,
+        "time_percentage": 0
+    }
+    
+    return templates.TemplateResponse(
+        "instance_upload.html",
+        {
+            "request": request, 
+            "instance": instance,
+            "title": f"Instance #{instance_id}"
+        }
+    )
 
 @app.post("/upload")
-async def upload_file(dbFile: UploadFile = File(...)):
+async def upload_file(dbFile: UploadFile = File(..., alias="file")):
     """处理文件上传"""
     if not dbFile.filename.endswith('.mdb'):
         raise HTTPException(status_code=400, detail="只接受 .mdb 文件")

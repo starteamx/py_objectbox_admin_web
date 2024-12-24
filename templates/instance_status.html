@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Instance Status{% endblock %}
+
+{% block extra_css %}
+<style>
+.instance-card {
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.instance-card .card-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.5rem;
+}
+
+.instance-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.status-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.instance-timer {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+.progress {
+    height: 5px;
+}
+
+.action-buttons {
+    margin-top: 1rem;
+}
+
+.status-idle {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.status-running {
+    background-color: #e8f5e9;
+    border-color: #c8e6c9;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Instance Status <small class="text-muted">(5 Total)</small></h2>
+    </div>
+    <div class="col-auto">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+                <i class="fa fa-refresh"></i> Refresh
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#helpModal">
+                <i class="fa fa-question-circle"></i> Help
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for instance in instances %}
+    <div class="col-md-4">
+        <div class="card instance-card {% if instance.status == 'RUNNING' %}status-running{% else %}status-idle{% endif %}">
+            <div class="card-body">
+                <span class="status-badge badge {% if instance.status == 'RUNNING' %}bg-success{% else %}bg-primary{% endif %}">
+                    {{ "运行中" if instance.status == 'RUNNING' else "空闲" }}
+                </span>
+                
+                <h5 class="card-title">Instance #{{ instance.id }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">Port: {{ instance.port }}</h6>
+                
+                {% if instance.status == 'RUNNING' %}
+                <div class="instance-timer">
+                    运行时间: {{ instance.running_time }}
+                    <div class="progress mt-1">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ instance.time_percentage }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="action-buttons">
+                    {% if instance.status == 'RUNNING' %}
+                    <button class="btn btn-info" onclick="showRunningMessage({{ instance.port }})">
+                        <i class="fa fa-external-link"></i> 查看实例
+                    </button>
+                    {% else %}
+                    <a href="/instance/{{ instance.id }}" class="btn btn-primary">
+                        <i class="fa fa-play"></i> 启动并上传
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">How to Use</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Instance States:</h6>
+                <ul>
+                    <li><span class="badge bg-success">RUNNING</span> - Instance is active and can be accessed</li>
+                    <li><span class="badge bg-secondary">IDLE</span> - Instance is available for use</li>
+                </ul>
+                <h6>Actions:</h6>
+                <ul>
+                    <li><strong>Start Instance</strong> - Launch a new ObjectBox Admin instance</li>
+                    <li><strong>Stop Instance</strong> - Stop and release the instance</li>
+                    <li><strong>Open</strong> - Access the running instance in a new tab</li>
+                </ul>
+                <p class="text-muted mt-3">Note: Instances will automatically stop after 30 minutes of inactivity.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 刷新按钮动画
+    $('#refreshBtn').click(function() {
+        $(this).find('i').addClass('fa-spin');
+        location.reload();
+    });
+
+    // 启动实例
+    $('.start-btn').click(function() {
+        const instanceId = $(this).data('instance-id');
+        // TODO: 添加启动实例的 AJAX 调用
+    });
+
+    // 停止实例
+    $('.stop-btn').click(function() {
+        const instanceId = $(this).data('instance-id');
+        // TODO: 添加停止实例的 AJAX 调用
+    });
+
+    // 自动刷新（每30秒）
+    setInterval(function() {
+        $.get('/api/instances', function(data) {
+            // TODO: 更新实例状态
+        });
+    }, 30000);
+});
+
+function showRunningMessage(port) {
+    // 使用 Bootstrap 的 toast 或 alert 显示消息
+    alert(`实例正在运行中，请直接访问: http://localhost:${port}`);
+}
+</script>
+{% endblock %}

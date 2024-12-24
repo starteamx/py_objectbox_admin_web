@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin: 20px 0;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.instance-info {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.status-badge {
+    font-size: 1rem;
+}
+
+.timer-display {
+    font-size: 1.2rem;
+    color: #666;
+    margin: 10px 0;
+}
+
+.progress {
+    height: 5px;
+    margin: 10px 0;
+}
+
+#uploadButton {
+    display: none;
+    margin-top: 10px;
+}
+
+.selected-file {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <a href="/" class="btn btn-outline-secondary mb-3">
+                <i class="fa fa-arrow-left"></i> 返回实例列表
+            </a>
+            <div class="instance-info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>实例 #{{ instance.id }}</h2>
+                    <span class="status-badge badge {% if instance.status == 'RUNNING' %}bg-success{% else %}bg-primary{% endif %}">
+                        {{ "运行中" if instance.status == 'RUNNING' else "空闲" }}
+                    </span>
+                </div>
+                <p class="text-muted">端口: {{ instance.port }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="upload-area" id="dropZone">
+                <i class="fa fa-cloud-upload fa-3x mb-3"></i>
+                <h4>上传 ObjectBox 数据库文件</h4>
+                <p class="text-muted">拖拽文件到此处或点击选择文件</p>
+                <input type="file" id="fileInput" class="d-none" accept=".mdb">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    <i class="fa fa-folder-open"></i> 选择文件
+                </button>
+                <div class="selected-file" id="selectedFile"></div>
+                <button id="uploadButton" class="btn btn-success">
+                    <i class="fa fa-upload"></i> 开始上传
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">最近活动</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                    <th>详情</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activityLog">
+                                <tr>
+                                    <td>刚刚</td>
+                                    <td>实例已启动</td>
+                                    <td>端口: {{ instance.port }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const selectedFile = document.getElementById('selectedFile');
+    let currentFile = null;
+
+    // 拖放功能
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-primary');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-primary');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-primary');
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.toLowerCase().endsWith('.mdb')) {
+                currentFile = file;
+                selectedFile.style.display = 'block';
+                selectedFile.textContent = `已选择: ${file.name}`;
+                uploadButton.style.display = 'inline-block';
+            } else {
+                alert('请选择 .mdb 格式的文件');
+                fileInput.value = '';
+                selectedFile.style.display = 'none';
+                uploadButton.style.display = 'none';
+            }
+        }
+    }
+
+    uploadButton.addEventListener('click', async () => {
+        if (!currentFile) return;
+
+        const formData = new FormData();
+        formData.append('file', currentFile);
+
+        try {
+            uploadButton.disabled = true;
+            uploadButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 上传中...';
+
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                addActivityLog('文件上传成功', currentFile.name);
+                
+                // 清理上传状态
+                fileInput.value = '';
+                selectedFile.style.display = 'none';
+                uploadButton.style.display = 'none';
+                currentFile = null;
+
+                // 显示成功消息
+                alert('文件上传成功！即将跳转到 ObjectBox Admin 界面...');
+                
+                // 使用服务器返回的 URL 进行跳转
+                setTimeout(() => {
+                    window.location.href = result.url;  // 使用服务器返回的 URL
+                }, 1000);
+            } else {
+                const error = await response.json();
+                throw new Error(error.message || '上传失败');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('上传失败：' + error.message);
+        } finally {
+            uploadButton.disabled = false;
+            uploadButton.innerHTML = '<i class="fa fa-upload"></i> 开始上传';
+        }
+    });
+
+    function addActivityLog(action, details) {
+        const now = new Date().toLocaleTimeString();
+        const row = `
+            <tr>
+                <td>${now}</td>
+                <td>${action}</td>
+                <td>${details}</td>
+            </tr>
+        `;
+        document.getElementById('activityLog').insertAdjacentHTML('afterbegin', row);
+    }
+});
+</script>
+{% endblock %} 
