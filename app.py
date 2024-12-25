@@ -6,10 +6,13 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+
+from app.database.models import init_db
+from app.database.manager import DatabaseManager
 
 # 配置常量
 OBJECTBOX_DIR = "objectbox"
@@ -20,6 +23,7 @@ FILE_EXPIRE_MINUTES = 1
 async def lifespan(app: FastAPI):
     """应用的生命周期管理"""
     # 启动时执行
+    init_db()  # 初始化数据库
     cleanup_old_files()
     stop_existing_container()
     
@@ -58,7 +62,7 @@ def cleanup_old_files():
     for item in os.listdir(OBJECTBOX_DIR):
         item_path = os.path.join(OBJECTBOX_DIR, item)
         # 过 objectbox-admin.sh 和 nginx 目录
-        if item in ["objectbox-admin.sh", "nginx"]:
+        if item in ["objectbox-admin.sh", "nginx","t"]:
             continue
         
         # 检查文件/目录的修改时间
@@ -101,133 +105,149 @@ def stop_existing_container():
 
 @app.get("/")
 async def home(request: Request):
-    # 测试数据
-    test_instances = [
-        {
-            "id": 1,
-            "port": 8081,
-            "status": "RUNNING",
-            "running_time": "15分钟30秒",
-            "time_percentage": 45
-        },
-        {
-            "id": 2,
-            "port": 8082,
-            "status": "IDLE",
-            "running_time": None,
-            "time_percentage": 0
-        },
-        {
-            "id": 3,
-            "port": 8083,
-            "status": "RUNNING",
-            "running_time": "5m 12s",
-            "time_percentage": 15
-        },
-        {
-            "id": 4,
-            "port": 8084,
-            "status": "IDLE",
-            "running_time": None,
-            "time_percentage": 0
-        },
-        {
-            "id": 5,
-            "port": 8085,
-            "status": "IDLE",
+    db_manager = DatabaseManager()
+    instances = db_manager.get_all_instances()
+    local_ip = get_local_ip()
+    
+    # 处理实例数据以适应模板
+    instances_data = []
+    for instance in instances:
+        instance_dict = {
+            "id": instance.id,
+            "port": 8080 + instance.id,  # 外部访问端口
+            "status": instance.status,
             "running_time": None,
             "time_percentage": 0
         }
-    ]
+        
+        if instance.status == 'RUNNING' and instance.start_time:
+            # 计算运行时间
+            running_time = datetime.now() - instance.start_time
+            minutes = running_time.seconds // 60
+            seconds = running_time.seconds % 60
+            instance_dict["running_time"] = f"{minutes}分钟{seconds}秒"
+            instance_dict["time_percentage"] = min((running_time.seconds / 1800) * 100, 100)  # 30分钟为100%
+        
+        instances_data.append(instance_dict)
     
     return templates.TemplateResponse(
-        "instance_status.html", 
-        {"request": request, "instances": test_instances}
+        "instance_status.html",
+        {
+            "request": request, 
+            "instances": instances_data,
+            "local_ip": local_ip
+        }
     )
 
 @app.get("/instance/{instance_id}")
 async def instance_detail(request: Request, instance_id: int):
-    # 检查实例状态
-    # 这里应该检查实例是否处于空闲状态
-    instance = {
-        "id": instance_id,
-        "port": 8080 + instance_id,
-        "status": "IDLE",  # 只有空闲状态才能进入上传页面
-        "running_time": None,
-        "time_percentage": 0
-    }
+    db_manager = DatabaseManager()
+    instance = db_manager.get_instance(instance_id)
+    
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    
+    if instance.status == 'RUNNING':
+        raise HTTPException(status_code=400, detail="Instance is already running")
     
     return templates.TemplateResponse(
         "instance_upload.html",
         {
-            "request": request, 
-            "instance": instance,
+            "request": request,
+            "instance": {
+                "id": instance.id,
+                "port": instance.port,
+                "status": instance.status
+            },
             "title": f"Instance #{instance_id}"
         }
     )
 
 @app.post("/upload")
-async def upload_file(dbFile: UploadFile = File(..., alias="file")):
-    """处理文件上传"""
-    if not dbFile.filename.endswith('.mdb'):
+async def upload_file(
+    file: UploadFile = File(...),
+    instance_id: int = Form(...)
+):
+    """处理文件上传并启动实例"""
+    # 验证文件类型
+    if not file.filename.endswith('.mdb'):
         raise HTTPException(status_code=400, detail="只接受 .mdb 文件")
-
-    # 清理旧文件和进程
-    cleanup_old_files()
-    stop_existing_container()
-
-    # 创建唯一的目录名并使用绝对路径
-    unique_dir = str(uuid.uuid4())
-    base_dir = os.path.abspath(os.path.join(OBJECTBOX_DIR, unique_dir))
-    db_dir = os.path.join(base_dir, "objectbox")  # 创建 objectbox 子目录
-
-    print(f"创建目录结构:")
-    print(f"base_dir: {base_dir}")
-    print(f"db_dir: {db_dir}")
-
-    # 文件操作部分使用单独的错误处理
+    
     try:
-        # 先创建基础目录
-        os.makedirs(base_dir, exist_ok=True)
-        print(f"基础目录创建成功: {base_dir}")
+        # 获取数据库管理器
+        db_manager = DatabaseManager()
+        instance = db_manager.get_instance(instance_id)
         
-        # 再创建数据库目录
-        os.makedirs(db_dir, exist_ok=True)
-        print(f"数据库目录创建成功: {db_dir}")
+        if not instance or instance.status == 'RUNNING':
+            raise HTTPException(status_code=400, detail="实例不可用")
 
-        # 保存上传的文件到 objectbox 子目录
+        # 使用项目根目录
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+        instance_dir = os.path.join(root_dir, "objectbox", f"instance_{instance_id}")
+        db_dir = os.path.join(instance_dir, "objectbox")
+        
+        # 确保目录存在
+        os.makedirs(db_dir, exist_ok=True)
+        
+        # 保存上传的文件
         file_path = os.path.join(db_dir, "data.mdb")
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(dbFile.file, buffer)
-        print(f"文件保存成功: {file_path}")
+            shutil.copyfileobj(file.file, buffer)
+
+        # 设置端口
+        nginx_port = 8080 + instance_id
+        
+        # 启动服务（使用项目根目录）
+        process = subprocess.Popen(
+            [
+                "./objectbox/objectbox-admin.sh",
+                "--instance-id", str(instance_id),
+                "--nginx-port", str(nginx_port),
+                "--db-path", db_dir
+            ],
+            cwd=root_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        # 更新实例状态
+        db_manager.update_instance_status(
+            instance_id, 
+            'RUNNING', 
+            str(process.pid)
+        )
+        
+        # 记录活动日志
+        db_manager.log_activity(
+            instance_id,
+            None,
+            None,
+            "START",
+            f"Started with file: {file.filename}"
+        )
+        time.sleep(5)
+        # 返回访问URL
+        local_ip = get_local_ip()
+        return {
+            "status": "success",
+            "url": f"http://{local_ip}:{nginx_port}",
+            "instance_id": instance_id
+        }
+
     except Exception as e:
-        print(f"文件操作失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"文件操作失败: {str(e)}")
-
-    # 启动 ObjectBox Admin
-    admin_script = os.path.abspath(os.path.join(OBJECTBOX_DIR, "objectbox-admin.sh"))
-    print(f"使用脚本: {admin_script}")
-    print(f"工作目录: {os.path.dirname(admin_script)}")
-    print(f"数据库目录: {base_dir}")
-
-    # 启动进程并捕获输出
-    process = subprocess.Popen([
-        admin_script,
-        "--port", str(ADMIN_PORT),
-        base_dir
-    ], cwd=os.path.dirname(admin_script),
-       stdout=subprocess.PIPE,
-       stderr=subprocess.PIPE,
-       universal_newlines=True)
-    
-    # 等待服务启动
-    print("等待服务启动...")
-    time.sleep(2)
-
-    # 返回URL
-    local_ip = get_local_ip()
-    return {"url": f"http://{local_ip}:{ADMIN_PORT}"}
-
+        # 记录错误
+        logger.error(f"实例 {instance_id} 启动失败: {str(e)}")
+        # 清理资源
+        if 'process' in locals():
+            process.kill()
+        # 更新状态
+        if 'db_manager' in locals():
+            db_manager.update_instance_status(instance_id, 'ERROR')
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"启动实例失败: {str(e)}"
+        )
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 

@@ -55,58 +55,44 @@
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>Instance Status <small class="text-muted">(5 Total)</small></h2>
-    </div>
-    <div class="col-auto">
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
-                <i class="fa fa-refresh"></i> Refresh
-            </button>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#helpModal">
-                <i class="fa fa-question-circle"></i> Help
-            </button>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4">
-    {% for instance in instances %}
-    <div class="col-md-4">
-        <div class="card instance-card {% if instance.status == 'RUNNING' %}status-running{% else %}status-idle{% endif %}">
-            <div class="card-body">
-                <span class="status-badge badge {% if instance.status == 'RUNNING' %}bg-success{% else %}bg-primary{% endif %}">
-                    {{ "运行中" if instance.status == 'RUNNING' else "空闲" }}
-                </span>
-                
-                <h5 class="card-title">Instance #{{ instance.id }}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">Port: {{ instance.port }}</h6>
-                
-                {% if instance.status == 'RUNNING' %}
-                <div class="instance-timer">
-                    运行时间: {{ instance.running_time }}
-                    <div class="progress mt-1">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ instance.time_percentage }}%"></div>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <div class="action-buttons">
+<div class="container mt-4">
+    <h2>实例状态</h2>
+    <div class="row">
+        {% for instance in instances %}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">实例 #{{ instance.id }}</h5>
+                    <p class="card-text">
+                        状态: <span class="badge {% if instance.status == 'RUNNING' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ instance.status }}
+                        </span>
+                    </p>
+                    
                     {% if instance.status == 'RUNNING' %}
-                    <button class="btn btn-info" onclick="showRunningMessage({{ instance.port }})">
-                        <i class="fa fa-external-link"></i> 查看实例
-                    </button>
+                        <div class="progress mb-3">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ instance.time_percentage }}%"
+                                 aria-valuenow="{{ instance.time_percentage }}" 
+                                 aria-valuemin="0" aria-valuemax="100">
+                                {{ instance.running_time }}
+                            </div>
+                        </div>
+                        <a href="http://{{ local_ip }}:{{ instance.port }}" 
+                           class="btn btn-primary" target="_blank">
+                            访问实例
+                        </a>
                     {% else %}
-                    <a href="/instance/{{ instance.id }}" class="btn btn-primary">
-                        <i class="fa fa-play"></i> 启动并上传
-                    </a>
+                        <a href="/instance/{{ instance.id }}" 
+                           class="btn btn-success">
+                            启动实例
+                        </a>
                     {% endif %}
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
 <!-- Help Modal -->
