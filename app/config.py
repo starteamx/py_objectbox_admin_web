@@ -1,0 +1,4 @@
+# 配置常量
+OBJECTBOX_DIR = "objectbox"
+ADMIN_PORT = 8081
+FILE_EXPIRE_MINUTES = 1 
