@@ -1,5 +1,336 @@
 # ObjectBox Admin Web
 
+A web application for uploading and managing ObjectBox database files.
+
+## System Requirements
+
+- Python 3.x Latest Version
+- Docker (for running ObjectBox Admin)
+- pip (Python Package Manager)
+- Mac OS or Linux System
+
+## Python Installation Guide
+
+### Windows Installation
+1. **Download Package**
+   - Visit [Python Website](https://www.python.org/downloads/)
+   - Download latest Windows installer (64-bit version)
+
+2. **Installation Steps**
+```bash
+# Run installer, make sure to check:
+# - Install launcher for all users
+# - Add Python to PATH
+```
+
+3. **Verify Installation**
+```bash
+python --version
+pip --version
+```
+
+### Mac OS Installation
+
+1. **Install using Homebrew**
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install latest Python version
+brew install python
+
+# Verify installation
+python3 --version
+pip3 --version
+```
+
+### Linux Installation
+
+#### Ubuntu/Debian
+```bash
+# Update package list
+sudo apt update
+
+# Install Python
+sudo apt install -y python3 python3-pip python3-venv
+
+# Verify installation
+python3 --version
+pip3 --version
+```
+
+#### CentOS/RHEL
+```bash
+# Install Python
+sudo dnf install -y python3 python3-pip
+
+# Verify installation
+python3 --version
+pip3 --version
+```
+
+### Verify Python Environment
+```bash
+# Check Python version
+python3 --version
+
+# Check pip version
+pip3 --version
+```
+
+## Python Command Renaming
+
+### Windows System
+
+1. **Create Command Aliases**
+```batch
+# Create .bat files
+# C:\Windows\System32\python.bat
+@echo off
+python3 %*
+
+# C:\Windows\System32\pip.bat
+@echo off
+pip3 %*
+```
+
+### Mac/Linux System
+
+1. **Bash Users**
+```bash
+# Edit ~/.bashrc
+echo 'alias python=python3' >> ~/.bashrc
+echo 'alias pip=pip3' >> ~/.bashrc
+
+# Reload configuration
+source ~/.bashrc
+```
+
+2. **Zsh Users (Mac Default)**
+```bash
+# Edit ~/.zshrc
+echo 'alias python=python3' >> ~/.zshrc
+echo 'alias pip=pip3' >> ~/.zshrc
+
+# Reload configuration
+source ~/.zshrc
+```
+
+### Verify Settings
+```bash
+# Check Python version
+python --version
+
+# Check pip version
+pip --version
+```
+
+## Installation Guide
+
+### 1. Clone Project
+```bash
+git clone <repository-url>
+cd objectbox-admin-web
+```
+
+### 2. Create and Activate Virtual Environment
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows
+venv\Scripts\activate
+# Mac/Linux
+source venv/bin/activate
+
+# Confirm virtual environment is activated (you'll see (venv) prefix)
+python --version
+```
+
+### 3. Install Dependencies
+```bash
+# Ensure you're in virtual environment
+pip install -r requirements.txt
+```
+
+### 4. Prepare Directory Structure
+```
+project/
+├── app.py              # FastAPI main application
+├── deploy.sh           # Deployment script
+├── stop.sh            # Stop script
+├── static/            # Static files directory
+├── templates/         # HTML templates directory
+│   └── index.html    # Upload page
+├── objectbox/         # ObjectBox related files
+│   ├── nginx/        # Nginx config directory
+│   └── objectbox-admin.sh  # Start script
+├── run/              # PID files directory
+├── logs/             # Log files directory
+├── venv/             # Python virtual environment
+└── requirements.txt   # Python dependencies
+```
+
+### 5. Set Permissions
+```bash
+# Set execution permissions
+chmod +x deploy.sh stop.sh objectbox/objectbox-admin.sh
+
+# Set directory permissions
+chmod -R 755 logs run
+```
+
+## Docker Installation Guide
+
+### Windows Installation
+
+1. **Install WSL2 (Windows Subsystem for Linux)**
+```bash
+# Run in PowerShell as administrator
+wsl --install
+```
+
+2. **Download and Install Docker Desktop**
+- Visit [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop)
+- Download and install Docker Desktop
+- Ensure "Use WSL 2" option is selected during installation
+
+3. **Verify Installation**
+```bash
+docker --version
+docker-compose --version
+```
+
+### Mac OS Installation
+
+1. **Intel Chip Mac**
+- Visit [Docker Desktop for Mac (Intel)](https://www.docker.com/products/docker-desktop)
+- Download Intel chip version installer
+
+2. **Apple Silicon (M1/M2) Mac**
+- Visit [Docker Desktop for Mac (Apple Silicon)](https://www.docker.com/products/docker-desktop)
+- Download Apple Silicon version installer
+
+3. **Install using Homebrew**
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Docker Desktop
+brew install --cask docker
+```
+
+4. **Start Docker**
+- Launch Docker Desktop from Applications folder
+- Wait for Docker Desktop to complete startup
+
+5. **Verify Installation**
+```bash
+docker --version
+docker-compose --version
+```
+
+### Linux Installation
+
+#### Ubuntu/Debian
+```bash
+# Update package index
+sudo apt update
+
+# Install required dependencies
+sudo apt install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Add Docker's official GPG key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+# Set up stable repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io
+
+# Start Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add current user to docker group (avoid using sudo)
+sudo usermod -aG docker $USER
+```
+
+#### CentOS/RHEL
+```bash
+# Install required dependencies
+sudo yum install -y yum-utils
+
+# Add Docker repository
+sudo yum-config-manager \
+    --add-repo \
+    https://download.docker.com/linux/centos/docker-ce.repo
+
+# Install Docker Engine
+sudo yum install -y docker-ce docker-ce-cli containerd.io
+
+# Start Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add current user to docker group (avoid using sudo)
+sudo usermod -aG docker $USER
+```
+
+### Verify Docker Installation
+
+```bash
+# Check Docker version
+docker --version
+
+# Verify Docker is working properly
+docker run hello-world
+
+# Check Docker service status (Linux)
+sudo systemctl status docker
+```
+
+### Docker Troubleshooting
+
+1. **Permission Issues**
+```bash
+# After adding user to docker group on Linux, need to re-login
+newgrp docker
+```
+
+2. **Network Issues**
+```bash
+# Check Docker networks
+docker network ls
+
+# Restart Docker service
+# Windows/Mac: Restart through Docker Desktop
+# Linux:
+sudo systemctl restart docker
+```
+
+3. **Disk Space Issues**
+```bash
+# Clean unused Docker resources
+docker system prune -a
+
+# Check Docker disk usage
+docker system df
+```
+
+
+# ObjectBox Admin Web
+
 一个用于上传和管理 ObjectBox 数据库文件的 Web 应用程序。
 
 ## 系统要求
