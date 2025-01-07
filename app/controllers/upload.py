@@ -1,13 +1,25 @@
 import os
 import shutil
 import subprocess
-import time
+import logging
+import asyncio
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.database.manager import DatabaseManager
+from app.database.models import InstanceStatus
 from app.utils.network import get_local_ip
+from datetime import datetime
 
 router = APIRouter()
 db_manager = DatabaseManager()
+
+# 配置logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
 
 @router.post("/upload")
 async def upload_file(
@@ -20,8 +32,10 @@ async def upload_file(
     
     try:
         instance = db_manager.get_instance(instance_id)
-        if not instance or instance.status == 'RUNNING':
-            raise HTTPException(status_code=400, detail="实例不可用")
+        if not instance:
+            raise HTTPException(status_code=404, detail="实例不存在")
+        if instance.status == InstanceStatus.RUNNING:
+            raise HTTPException(status_code=400, detail="实例已在运行")
 
         # 使用项目根目录
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,41 +66,34 @@ async def upload_file(
             stderr=subprocess.PIPE
         )
         
+        # 等待5秒，让服务完全启动
+        await asyncio.sleep(5)
+        
         # 更新实例状态
         db_manager.update_instance_status(
             instance_id, 
-            'RUNNING', 
-            str(process.pid)
+            InstanceStatus.RUNNING,
+            datetime.now()
         )
         
-        # 记录活动日志
-        db_manager.log_activity(
-            instance_id,
-            None,
-            None,
-            "START",
-            f"Started with file: {file.filename}"
-        )
-        
-        time.sleep(5)  # 等待服务启动
+        logger.info(f"实例 {instance_id} 启动成功，PID: {process.pid}")
         
         # 返回访问URL
         local_ip = get_local_ip()
         return {
             "status": "success",
             "url": f"http://{local_ip}:{nginx_port}",
-            "instance_id": instance_id
+            "instance_id": instance_id,
+            "ws_url": f"ws://{local_ip}:8000/ws/{instance_id}"  # 添加端口号
         }
 
     except Exception as e:
-        # 记录错误
         logger.error(f"实例 {instance_id} 启动失败: {str(e)}")
         # 清理资源
         if 'process' in locals():
             process.kill()
-        # 更新状态
-        if 'db_manager' in locals():
-            db_manager.update_instance_status(instance_id, 'ERROR')
+        if instance:
+            db_manager.update_instance_status(instance_id, InstanceStatus.IDLE)
         
         raise HTTPException(
             status_code=500,

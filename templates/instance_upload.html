@@ -10,47 +10,18 @@
     padding: 20px;
     text-align: center;
     margin: 20px 0;
-    transition: all 0.3s ease;
 }
 
-.upload-area:hover {
-    border-color: #0d6efd;
-    background-color: rgba(13, 110, 253, 0.05);
-}
-
-.instance-info {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.status-badge {
-    font-size: 1rem;
-}
-
-.timer-display {
-    font-size: 1.2rem;
-    color: #666;
-    margin: 10px 0;
-}
-
-.progress {
-    height: 5px;
-    margin: 10px 0;
-}
-
-#uploadButton {
-    display: none;
-    margin-top: 10px;
-}
-
-.selected-file {
-    margin-top: 10px;
-    padding: 10px;
-    background-color: #e9ecef;
+.status-monitor {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
     border-radius: 4px;
     display: none;
+}
+
+.status-item {
+    margin-bottom: 10px;
 }
 </style>
 {% endblock %}
@@ -58,7 +29,9 @@
 {% block content %}
 <div class="container mt-4">
     <h2>实例 #{{ instance.id }} - 文件上传</h2>
-    <div class="card">
+    
+    <!-- 上传表单 -->
+    <div class="card" id="uploadCard">
         <div class="card-body">
             <form id="uploadForm" enctype="multipart/form-data">
                 <input type="hidden" name="instance_id" value="{{ instance.id }}">
@@ -74,8 +47,20 @@
             <div class="alert alert-danger mt-3 d-none" id="errorAlert"></div>
         </div>
     </div>
+
+    <!-- 状态监控区域 -->
+    <div class="status-monitor" id="statusMonitor">
+        <h4>实例状态监控</h4>
+        <div class="status-item">
+            <strong>连接状态:</strong> <span id="connectionStatus">未连接</span>
+        </div>
+        <div class="alert alert-info mt-3">
+            ObjectBox Admin 已在新窗口打开。保持此页面打开以维持实例运行。
+        </div>
+    </div>
 </div>
 
+<script src="{{ url_for('static', path='js/instance-monitor.js') }}"></script>
 <script>
 document.getElementById('uploadForm').onsubmit = async function(e) {
     e.preventDefault();
@@ -84,41 +69,32 @@ document.getElementById('uploadForm').onsubmit = async function(e) {
     const spinner = submitBtn.querySelector('.spinner-border');
     const errorAlert = document.getElementById('errorAlert');
     
-    // 显示加载状态
     submitBtn.disabled = true;
     spinner.classList.remove('d-none');
     errorAlert.classList.add('d-none');
     
-    const formData = new FormData(this);
-    
     try {
         const response = await fetch('/upload', {
             method: 'POST',
-            body: formData
+            body: new FormData(this)
         });
         
         const result = await response.json();
         
         if (response.ok) {
-            // 成功后跳转
-            window.location.href = result.url;
+            document.getElementById('uploadCard').style.display = 'none';
+            document.getElementById('statusMonitor').style.display = 'block';
+            
+            const monitor = new InstanceMonitor({{ instance.id }}, result.ws_url);
+            monitor.openAdminWindow(result.url);
         } else {
-            // 处理错误响应
-            let errorMessage = '上传失败';
-            if (result.detail) {
-                errorMessage = typeof result.detail === 'object' 
-                    ? JSON.stringify(result.detail) 
-                    : result.detail;
-            }
-            errorAlert.textContent = errorMessage;
+            errorAlert.textContent = result.detail || '上传失败';
             errorAlert.classList.remove('d-none');
         }
     } catch (error) {
-        // 显示错误信息
         errorAlert.textContent = '上传失败: ' + error.message;
         errorAlert.classList.remove('d-none');
     } finally {
-        // 恢复按钮状态
         submitBtn.disabled = false;
         spinner.classList.add('d-none');
     }

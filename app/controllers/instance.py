@@ -2,47 +2,30 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from app.database.manager import DatabaseManager
 from app.utils.network import get_local_ip
-from datetime import datetime
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
-db_manager = DatabaseManager()
+db_manager = DatabaseManager()  # 全局数据库管理器实例
 
 @router.get("/")
 async def home(request: Request):
     """首页 - 显示所有实例状态"""
-    instances = db_manager.get_all_instances()
-    local_ip = get_local_ip()
-    
-    # 处理实例数据以适应模板
-    instances_data = []
-    for instance in instances:
-        instance_dict = {
-            "id": instance.id,
-            "port": 8080 + instance.id,
-            "status": instance.status,
-            "running_time": None,
-            "time_percentage": 0
-        }
+    try:
+        instances = db_manager.get_all_instances()
+        local_ip = get_local_ip()
         
-        if instance.status == 'RUNNING' and instance.start_time:
-            # 计算运行时间
-            running_time = datetime.now() - instance.start_time
-            minutes = running_time.seconds // 60
-            seconds = running_time.seconds % 60
-            instance_dict["running_time"] = f"{minutes}分钟{seconds}秒"
-            instance_dict["time_percentage"] = min((running_time.seconds / 1800) * 100, 100)
-        
-        instances_data.append(instance_dict)
+        return templates.TemplateResponse(
+            "instance_status.html",
+            {
+                "request": request,
+                "instances": instances,
+                "local_ip": local_ip,
+                "title": "实例管理"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取实例列表失败: {str(e)}")
     
-    return templates.TemplateResponse(
-        "instance_status.html",
-        {
-            "request": request, 
-            "instances": instances_data,
-            "local_ip": local_ip
-        }
-    )
 
 @router.get("/instance/{instance_id}")
 async def instance_detail(request: Request, instance_id: int):
@@ -67,3 +50,14 @@ async def instance_detail(request: Request, instance_id: int):
             "title": f"Instance #{instance_id}"
         }
     ) 
+
+@router.get("/api/instances/status")
+async def get_instances_status():
+    """获取所有实例的状态"""
+    instances = db_manager.get_all_instances()
+    return [{
+        "instance_id": instance.instance_id,
+        "status": instance.status.value,
+        "start_time_text": instance.start_time.strftime("%Y-%m-%d %H:%M:%S") if instance.start_time else None,
+        "last_active_text": instance.last_active.strftime("%Y-%m-%d %H:%M:%S") if instance.last_active else None
+    } for instance in instances] 

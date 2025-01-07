@@ -1,177 +1,96 @@
-# ObjectBox Admin 实例监控方案
+# 数据操作方案设计
 
-## 1. 当前系统分析
+## 系统工作流程
 
-### 1.1 现有架构
-- FastAPI Web服务 (8000端口)
-- Nginx 反向代理
-- Docker 容器化实例
-- SQLite 数据存储
+### 实例管理流程
+- 系统启动时初始化 5 个实例记录
+- 每个实例分配固定端口 (8081-8085)
+- 实例状态在 IDLE 和 RUNNING 间切换
+- 记录实例的活跃时间用于监控
 
-### 1.2 问题描述
-- 实例状态监控缺失
-- 无法修改 objectbox-admin 页面
-- 缺乏实例生命周期管理
-- WebSocket 连接需求
+### 数据操作场景
+- 查询空闲实例
+- 更新实例状态
+- 更新实例活跃时间
+- 重置实例状态
 
-## 2. 解决方案
+## 核心数据操作需求
 
-### 2.1 核心思路
-- 保持原页面作为监控页
-- 新窗口打开 objectbox-admin
-- WebSocket 实时状态同步
-- 完整的实例生命周期管理
+### 查询操作
+- 获取指定 instance_id 的实例信息
+- 获取第一个空闲实例
+- 获取所有实例状态
+- 检查实例是否存在
 
-### 2.2 技术架构
-```
-[FastAPI Server]
-    ├── WebSocket 连接管理
-    ├── 实例状态管理
-    └── 数据库操作
+### 更新操作
+- 更新实例状态 (IDLE ↔ RUNNING)
+- 更新实例最后活跃时间
+- 重置实例（状态回到 IDLE）
 
-[Nginx Proxy]
-    ├── WebSocket 支持
-    └── 实例路由
+### 初始化操作
+- 创建数据表
+- 初始化实例记录
+- 重置所有实例状态
 
-[Instance Monitor]
-    ├── 状态显示
-    ├── WebSocket 客户端
-    └── 实例控制
-```
+## 技术实现重点
 
-## 3. 实现细节
+### 数据一致性
+- 实例状态变更必须是原子操作
+- 避免重复分配同一实例
+- 确保端口号唯一性
 
-### 3.1 前端改造
-```javascript
-// instance_upload.html 转换为监控页
-class InstanceMonitor {
-    constructor(instanceId) {
-        this.instanceId = instanceId;
-        this.ws = null;
-        this.status = {
-            instance: 'UNKNOWN',
-            connection: 'DISCONNECTED'
-        };
-    }
+### 性能考虑
+- 快速查找空闲实例
+- 高效的状态更新
+- 最小化数据库操作
 
-    // WebSocket 连接管理
-    async connect() {...}
-    
-    // UI 更新
-    updateStatus() {...}
-    
-    // 实例控制
-    async destroyInstance() {...}
-}
-```
+### 可维护性
+- 清晰的状态转换逻辑
+- 完整的错误处理
+- 便于调试的日志记录
 
-### 3.2 后端实现
-```python
-# WebSocket 路由
-@router.websocket("/ws/{instance_id}")
-async def websocket_endpoint(websocket: WebSocket, instance_id: int):
-    await websocket.accept()
-    try:
-        await handle_websocket(websocket, instance_id)
-    except WebSocketDisconnect:
-        await handle_disconnect(instance_id)
+## 潜在风险
 
-# 状态管理
-async def handle_websocket(websocket: WebSocket, instance_id: int):
-    while True:
-        try:
-            # 心跳检测
-            # 状态更新
-            # 错误处理
-        except Exception:
-            await handle_error(instance_id)
-```
+### 并发问题
+- 多用户同时请求空闲实例
+- 状态更新冲突
+- 死锁风险
 
-### 3.3 数据结构
-```sql
--- 实例状态表扩展
-ALTER TABLE instances ADD COLUMN ws_status TEXT DEFAULT 'DISCONNECTED';
-ALTER TABLE instances ADD COLUMN last_heartbeat TIMESTAMP;
-```
+### 数据一致性
+- 实例状态与实际不符
+- 端口重复分配
+- 孤立实例记录
 
-## 4. 部署流程
+### 性能问题
+- 频繁的状态更新
+- 重复的数据库查询
+- 连接池耗尽
 
-### 4.1 文件结构
-```
-app/
-├── websocket/
-│   └── routes.py      # WebSocket 路由
-├── static/
-│   └── js/
-│       └── monitor.js # 监控页面脚本
-├── templates/
-│   └── instance_monitor.html
-└── app.py
-```
+## 解决方案
 
-### 4.2 配置更新
-```nginx
-# Nginx WebSocket 配置
-location /ws/ {
-    proxy_pass http://localhost:8000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-}
-```
+### 数据访问层设计
+- 使用单例模式管理数据库连接
+- 实现基本的 CRUD 操作
+- 提供事务支持
 
-## 5. 实现步骤
+### 状态管理
+- 使用整型表示状态
+- 实现状态转换验证
+- 提供状态重置机制
 
-1. **基础设施准备**
-   - 添加 WebSocket 路由
-   - 更新数据库结构
-   - 配置 Nginx 支持
+### 并发控制
+- 使用数据库事务
+- 实现乐观锁或悲观锁
+- 添加超时机制
 
-2. **后端实现**
-   - 实例状态管理
-   - WebSocket 连接处理
-   - 心跳机制实现
+## 验证方法
 
-3. **前端改造**
-   - 监控页面设计
-   - WebSocket 客户端
-   - 状态显示组件
+### 功能测试
+- 实例状态转换测试
+- 并发分配测试
+- 异常恢复测试
 
-4. **测试验证**
-   - 连接稳定性
-   - 状态同步
-   - 错误处理
-
-## 6. 注意事项
-
-### 6.1 性能考虑
-- WebSocket 连接数限制
-- 心跳间隔优化
-- 资源清理机制
-
-### 6.2 安全性
-- WebSocket 认证
-- 状态验证
-- 错误处理
-
-### 6.3 可靠性
-- 自动重连机制
-- 状态恢复
-- 错误降级
-
-## 7. 后续优化
-
-1. **监控增强**
-   - 资源使用统计
-   - 日志聚合
-   - 告警机制
-
-2. **用户体验**
-   - 状态可视化
-   - 操作确认
-   - 错误提示
-
-3. **管理功能**
-   - 批量操作
-   - 定时任务
-   - 备份恢复
+### 性能测试
+- 高并发下的状态更新
+- 大量实例查询
+- 长时间运行稳定性

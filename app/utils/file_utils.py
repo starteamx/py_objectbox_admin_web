@@ -28,20 +28,36 @@ def cleanup_old_files():
 def stop_existing_container():
     """停止并清理所有 ObjectBox Admin 和 Nginx 实例容器"""
     try:
-        # 1. 获取所有 objectbox-admin 容器
-        admin_containers = subprocess.run(
-            ["docker", "ps", "-aq", "--filter", "name=objectbox-admin-"],
-            capture_output=True, text=True, check=True
-        ).stdout.strip().split('\n')
+        # 遍历实例ID 1-5
+        for instance_id in range(1, 6):
+            try:
+                stop_instance_container(instance_id)
+            except Exception as e:
+                print(f"清理实例 {instance_id} 时发生错误: {str(e)}")
+                continue  # 继续清理下一个实例
+                
+        print("已清理所有实例")
+        
+    except Exception as e:
+        print(f"清理容器和网络失败: {str(e)}")
 
-        # 2. 获取所有 nginx 容器
-        nginx_containers = subprocess.run(
-            ["docker", "ps", "-aq", "--filter", "name=objectbox-nginx-"],
+def stop_instance_container(instance_id: int):
+    """停止并清理指定实例ID的 ObjectBox Admin 和 Nginx 容器"""
+    try:
+        # 1. 获取指定实例的 objectbox-admin 容器
+        admin_container = subprocess.run(
+            ["docker", "ps", "-aq", "--filter", f"name=objectbox-admin-{instance_id}"],
             capture_output=True, text=True, check=True
-        ).stdout.strip().split('\n')
+        ).stdout.strip()
+
+        # 2. 获取指定实例的 nginx 容器
+        nginx_container = subprocess.run(
+            ["docker", "ps", "-aq", "--filter", f"name=nginx-proxy-{instance_id}"],
+            capture_output=True, text=True, check=True
+        ).stdout.strip()
 
         # 3. 停止并删除容器
-        for container_id in admin_containers + nginx_containers:
+        for container_id in [admin_container, nginx_container]:
             if container_id:  # 确保容器ID不为空
                 try:
                     # 停止容器
@@ -49,31 +65,34 @@ def stop_existing_container():
                         ["docker", "stop", container_id],
                         capture_output=True, check=True
                     )
+                    print(f"已停止容器: {container_id}")
+                    
                     # 删除容器
                     subprocess.run(
                         ["docker", "rm", container_id],
                         capture_output=True, check=True
                     )
+                    print(f"已删除容器: {container_id}")
                 except subprocess.CalledProcessError as e:
                     print(f"清理容器 {container_id} 失败: {str(e)}")
 
-        # 4. 清理未使用的网络
-        networks = subprocess.run(
-            ["docker", "network", "ls", "--filter", "name=objectbox-network-", "-q"],
+        # 4. 清理网络
+        network_id = subprocess.run(
+            ["docker", "network", "ls", "--filter", f"name=objectbox-network-{instance_id}", "-q"],
             capture_output=True, text=True, check=True
-        ).stdout.strip().split('\n')
+        ).stdout.strip()
 
-        for network_id in networks:
-            if network_id:
-                try:
-                    subprocess.run(
-                        ["docker", "network", "rm", network_id],
-                        capture_output=True, check=True
-                    )
-                except subprocess.CalledProcessError as e:
-                    print(f"清理网络 {network_id} 失败: {str(e)}")
+        if network_id:
+            try:
+                subprocess.run(
+                    ["docker", "network", "rm", network_id],
+                    capture_output=True, check=True
+                )
+                print(f"已删除网络: objectbox-network-{instance_id}")
+            except subprocess.CalledProcessError as e:
+                print(f"清理网络失败: {str(e)}")
 
-        print("已清理所有 ObjectBox Admin 和 Nginx 容器及网络")
+        print(f"实例 {instance_id} 的所有资源已清理完成")
         
     except Exception as e:
-        print(f"清理容器和网络失败: {str(e)}") 
+        print(f"清理实例 {instance_id} 失败: {str(e)}") 

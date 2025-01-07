@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Instance Status{% endblock %}
+{% block title %}实例状态{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -41,16 +41,6 @@
 .action-buttons {
     margin-top: 1rem;
 }
-
-.status-idle {
-    background-color: #f8f9fa;
-    border-color: #dee2e6;
-}
-
-.status-running {
-    background-color: #e8f5e9;
-    border-color: #c8e6c9;
-}
 </style>
 {% endblock %}
 
@@ -60,33 +50,29 @@
     <div class="row">
         {% for instance in instances %}
         <div class="col-md-4 mb-4">
-            <div class="card">
+            <div class="card instance-card" id="instance-{{ instance.instance_id }}">
                 <div class="card-body">
-                    <h5 class="card-title">实例 #{{ instance.id }}</h5>
-                    <p class="card-text">
-                        状态: <span class="badge {% if instance.status == 'RUNNING' %}bg-success{% else %}bg-secondary{% endif %}">
-                            {{ instance.status }}
-                        </span>
-                    </p>
+                    <h5 class="card-title">实例 #{{ instance.instance_id }}</h5>
                     
-                    {% if instance.status == 'RUNNING' %}
-                        <div class="progress mb-3">
-                            <div class="progress-bar" role="progressbar" 
-                                 style="width: {{ instance.time_percentage }}%"
-                                 aria-valuenow="{{ instance.time_percentage }}" 
-                                 aria-valuemin="0" aria-valuemax="100">
-                                {{ instance.running_time }}
+                    {% if instance.status.value == 1 %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-circle"></i>
+                            该实例正在使用中
+                            <div class="small mt-2">
+                                启动时间: {{ instance.start_time_text }}<br>
+                                最后活跃: {{ instance.last_active_text }}
                             </div>
                         </div>
-                        <a href="http://{{ local_ip }}:{{ instance.port }}" 
-                           class="btn btn-primary" target="_blank">
-                            访问实例
-                        </a>
                     {% else %}
-                        <a href="/instance/{{ instance.id }}" 
-                           class="btn btn-success">
-                            启动实例
-                        </a>
+                        <p class="card-text">
+                            状态: <span class="badge bg-success">可用</span>
+                        </p>
+                        <div class="action-buttons">
+                            <a href="/instance/{{ instance.instance_id }}" 
+                               class="btn btn-success">
+                                启动实例
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -100,22 +86,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">How to Use</h5>
+                <h5 class="modal-title">使用说明</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <h6>Instance States:</h6>
+                <h6>实例状态说明:</h6>
                 <ul>
-                    <li><span class="badge bg-success">RUNNING</span> - Instance is active and can be accessed</li>
-                    <li><span class="badge bg-secondary">IDLE</span> - Instance is available for use</li>
+                    <li><span class="badge bg-success">运行中</span> - 实例已启动，可以访问</li>
+                    <li><span class="badge bg-secondary">空闲</span> - 实例可以启动使用</li>
                 </ul>
-                <h6>Actions:</h6>
+                <h6>操作说明:</h6>
                 <ul>
-                    <li><strong>Start Instance</strong> - Launch a new ObjectBox Admin instance</li>
-                    <li><strong>Stop Instance</strong> - Stop and release the instance</li>
-                    <li><strong>Open</strong> - Access the running instance in a new tab</li>
+                    <li><strong>启动实例</strong> - 启动一个新的实例</li>
+                    <li><strong>访问实例</strong> - 在新标签页中打开实例</li>
                 </ul>
-                <p class="text-muted mt-3">Note: Instances will automatically stop after 30 minutes of inactivity.</p>
+                <p class="text-muted mt-3">注意: 实例在30分钟无操作后将自动停止</p>
             </div>
         </div>
     </div>
@@ -124,36 +109,79 @@
 
 {% block extra_js %}
 <script>
-$(document).ready(function() {
-    // 刷新按钮动画
-    $('#refreshBtn').click(function() {
-        $(this).find('i').addClass('fa-spin');
-        location.reload();
-    });
+class InstanceStatusMonitor {
+    constructor(interval = 5000) {  // 默认5秒刷新一次
+        this.interval = interval;
+        this.timer = null;
+        this.startPolling();
+    }
 
-    // 启动实例
-    $('.start-btn').click(function() {
-        const instanceId = $(this).data('instance-id');
-        // TODO: 添加启动实例的 AJAX 调用
-    });
+    async updateStatus() {
+        try {
+            const response = await fetch('/api/instances/status');
+            const instances = await response.json();
+            
+            instances.forEach(instance => {
+                const card = document.querySelector(`#instance-${instance.instance_id}`);
+                if (card) {
+                    if (instance.status === 1) {  // 运行中
+                        card.innerHTML = `
+                            <div class="card-body">
+                                <h5 class="card-title">实例 #${instance.instance_id}</h5>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    该实例正在使用中
+                                    <div class="small mt-2">
+                                        启动时间: ${instance.start_time_text}<br>
+                                        最后活跃: ${instance.last_active_text}
+                                    </div>
+                                </div>
+                            </div>`;
+                    } else {  // 空闲
+                        card.innerHTML = `
+                            <div class="card-body">
+                                <h5 class="card-title">实例 #${instance.instance_id}</h5>
+                                <p class="card-text">
+                                    状态: <span class="badge bg-success">可用</span>
+                                </p>
+                                <div class="action-buttons">
+                                    <a href="/instance/${instance.instance_id}" 
+                                       class="btn btn-success">
+                                        启动实例
+                                    </a>
+                                </div>
+                            </div>`;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to update instance status:', error);
+        }
+    }
 
-    // 停止实例
-    $('.stop-btn').click(function() {
-        const instanceId = $(this).data('instance-id');
-        // TODO: 添加停止实例的 AJAX 调用
-    });
+    startPolling() {
+        this.updateStatus();  // 立即执行一次
+        this.timer = setInterval(() => this.updateStatus(), this.interval);
+    }
 
-    // 自动刷新（每30秒）
-    setInterval(function() {
-        $.get('/api/instances', function(data) {
-            // TODO: 更新实例状态
-        });
-    }, 30000);
-});
-
-function showRunningMessage(port) {
-    // 使用 Bootstrap 的 toast 或 alert 显示消息
-    alert(`实例正在运行中，请直接访问: http://localhost:${port}`);
+    stopPolling() {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+    }
 }
+
+// 启动状态监控
+const statusMonitor = new InstanceStatusMonitor();
+
+// 页面隐藏时停止轮询，显示时恢复
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        statusMonitor.stopPolling();
+    } else {
+        statusMonitor.startPolling();
+    }
+});
 </script>
 {% endblock %}
